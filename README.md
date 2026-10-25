@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dinesh Kumar G — Ride-through Portfolio
 
-## Getting Started
+A scroll-driven portfolio: a rider on a motorbike cruises through a sunset city,
+and each section of the site (About, Experience, Skills, Projects, Education,
+Contact) has its own landmark on the route.
 
-First, run the development server:
+Stack (per the Premium Website Workflow guide): **Next.js + React, Three.js,
+GSAP + ScrollTrigger, Lenis, Neon** (contact form).
+
+## Run it
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Edit your content
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Everything you'd want to change is in **`src/content/profile.ts`** — name,
+summary, experience, skills, projects, links, and the section order.
+Billboard text in the 3D city is at the top of `src/components/Portfolio.tsx`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Use a cinematic AI video instead of the live 3D city (optional)
 
-## Learn More
+For the photoreal look from the reference reel, generate a ride-through clip
+(Higgsfield / Kling: "first-person chase shot behind a motorcyclist riding
+through a European city at golden hour, smooth camera, 10 seconds"), then:
 
-To learn more about Next.js, take a look at the following resources:
+1. Re-encode it so it scrubs smoothly on scroll (every frame a keyframe):
+   ```bash
+   ffmpeg -i ride-raw.mp4 -vf scale=1920:-2 -c:v libx264 -g 1 -crf 23 -an public/ride.mp4
+   ```
+2. In `src/content/profile.ts` set `rideVideo: "/ride.mp4"`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Scrolling now plays the video forward/backward; all sections stay the same.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Contact form → Neon
 
-## Deploy on Vercel
+1. Create a free database at https://neon.tech and copy the connection string.
+2. Add it as `DATABASE_URL` in `.env.local` (and in your host's env settings).
+3. Messages land in the `contact_messages` table (created automatically).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Without `DATABASE_URL`, messages are only logged on the server.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deploy
+
+Push to GitHub and import the repo on https://vercel.com — no config needed.
+Add `DATABASE_URL` under Project → Settings → Environment Variables.
+
+## Where things live
+
+| File | What it does |
+| --- | --- |
+| `src/content/profile.ts` | All text content and section order |
+| `src/lib/rideScene.ts` | The Three.js city, rider, camera moves per section |
+| `src/components/Portfolio.tsx` | Page layout, Lenis smooth scroll, GSAP reveals, HUD |
+| `src/app/globals.css` | Styling |
+| `src/app/api/contact/route.ts` | Contact form endpoint (Neon) |
+| `public/Dinesh_Kumar_Resume.pdf` | Résumé linked from the contact section |
