@@ -5,7 +5,7 @@ and each section of the site (About, Experience, Skills, Projects, Education,
 Contact) has its own landmark on the route.
 
 Stack (per the Premium Website Workflow guide): **Next.js + React, Three.js,
-GSAP + ScrollTrigger, Lenis, Neon** (contact form).
+GSAP + ScrollTrigger, Lenis**.
 
 ## Run it
 
@@ -34,18 +34,9 @@ through a European city at golden hour, smooth camera, 10 seconds"), then:
 
 Scrolling now plays the video forward/backward; all sections stay the same.
 
-## Contact form → Neon
-
-1. Create a free database at https://neon.tech and copy the connection string.
-2. Add it as `DATABASE_URL` in `.env.local` (and in your host's env settings).
-3. Messages land in the `contact_messages` table (created automatically).
-
-Without `DATABASE_URL`, messages are only logged on the server.
-
 ## Deploy
 
 Push to GitHub and import the repo on https://vercel.com — no config needed.
-Add `DATABASE_URL` under Project → Settings → Environment Variables.
 
 ## Where things live
 
@@ -55,5 +46,4 @@ Add `DATABASE_URL` under Project → Settings → Environment Variables.
 | `src/lib/rideScene.ts` | The Three.js city, rider, camera moves per section |
 | `src/components/Portfolio.tsx` | Page layout, Lenis smooth scroll, GSAP reveals, HUD |
 | `src/app/globals.css` | Styling |
-| `src/app/api/contact/route.ts` | Contact form endpoint (Neon) |
 | `public/Dinesh_Kumar_Resume.pdf` | Résumé linked from the contact section |

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
@@ -141,7 +141,7 @@ export default function Portfolio() {
       </div>
 
       <header className="topbar">
-        <button className="logo" onClick={() => go("home")}>DKG</button>
+        <button className="logo" onClick={() => go("home")}>DK</button>
         <nav>
           {sections.slice(1).map((s) => (
             <button key={s.id} className={sections[active].id === s.id ? "on" : ""} onClick={() => go(s.id)}>
@@ -260,43 +260,33 @@ export default function Portfolio() {
 }
 
 function Contact() {
-  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [copied, setCopied] = useState(false);
 
-  const submit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const data = Object.fromEntries(new FormData(form)) as Record<string, string>;
-    setState("sending");
+  const copyEmail = async () => {
     try {
-      const res = await fetch("/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-      if (!res.ok) throw new Error();
-      setState("sent");
-      form.reset();
+      await navigator.clipboard.writeText(profile.email);
     } catch {
-      // no backend available (e.g. static preview) — fall back to email
-      window.location.href = `mailto:${profile.email}?subject=${encodeURIComponent("Hello from your portfolio")}&body=${encodeURIComponent(`${data.message}\n\n— ${data.name} (${data.email})`)}`;
-      setState("idle");
+      const range = document.createRange();
+      const el = document.getElementById("contact-email");
+      if (el) { range.selectNodeContents(el); window.getSelection()?.removeAllRanges(); window.getSelection()?.addRange(range); }
     }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
     <div className="card contact" data-reveal>
       <p className="kicker">06 — Contact</p>
       <h2>Let&apos;s work together.</h2>
-      <p>Open to conversations about AI engineering, agent platforms and healthcare tech.</p>
-      <form onSubmit={submit}>
-        <div className="row">
-          <input name="name" placeholder="Your name" required autoComplete="name" />
-          <input name="email" type="email" placeholder="Email" required autoComplete="email" />
-        </div>
-        <textarea name="message" placeholder="What are we building?" rows={4} required />
-        <button disabled={state === "sending"}>{state === "sending" ? "Sending…" : state === "sent" ? "Sent — thank you!" : "Send message"}</button>
-      </form>
-      <div className="links">
-        <a href={`mailto:${profile.email}`}>{profile.email}</a>
-        <a href={profile.linkedin} target="_blank" rel="noreferrer">LinkedIn ↗</a>
-        <a href={profile.github} target="_blank" rel="noreferrer">GitHub ↗</a>
-        {profile.resumeUrl && <a href={profile.resumeUrl} target="_blank" rel="noreferrer">Résumé ↗</a>}
+      <p>Open to roles and conversations in AI engineering, agent platforms and healthcare tech.</p>
+      <div className="email-row">
+        <a id="contact-email" className="email" href={`mailto:${profile.email}`}>{profile.email}</a>
+        <button type="button" className="copy" onClick={copyEmail}>{copied ? "Copied" : "Copy email"}</button>
+      </div>
+      <div className="contact-actions">
+        <a className="btn primary" href={profile.linkedin} target="_blank" rel="noreferrer">LinkedIn ↗</a>
+        <a className="btn" href={profile.github} target="_blank" rel="noreferrer">GitHub ↗</a>
+        {profile.resumeUrl && <a className="btn" href={profile.resumeUrl} target="_blank" rel="noreferrer">Résumé ↗</a>}
       </div>
       <p className="foot">© {new Date().getFullYear()} {profile.name}</p>
     </div>
