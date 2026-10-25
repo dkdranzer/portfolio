@@ -118,13 +118,16 @@ export const profile = {
 };
 
 // Section order drives both the page and the ride. `stop` is where along the
-// route (0 → 1) the rider is when that section is centred on screen.
+// journey (0 → 1) you are when that section is centred on screen.
+// 0–0.5 motorbike · 0.5–0.745 boat · 0.745–0.92 up the tower · then sunset.
+// Sections with `anchor: false` scroll freely between their neighbours.
 export const sections = [
-  { id: "home", label: "Start", stop: 0 },
-  { id: "about", label: "About", stop: 0.15 },
-  { id: "experience", label: "Experience", stop: 0.32 },
-  { id: "skills", label: "Skills", stop: 0.49 },
-  { id: "projects", label: "Projects", stop: 0.66 },
-  { id: "education", label: "Education", stop: 0.83 },
-  { id: "contact", label: "Contact", stop: 1 },
+  { id: "home", label: "Start", stop: 0, anchor: true, nav: false },
+  { id: "about", label: "About", stop: 0.11, anchor: true, nav: true },
+  { id: "experience", label: "Experience", stop: 0.24, anchor: true, nav: true },
+  { id: "skills", label: "Skills", stop: 0.37, anchor: true, nav: true },
+  { id: "boat", label: "The bay", stop: 0.5, anchor: true, nav: false },
+  { id: "projects", label: "Projects", stop: 0.62, anchor: false, nav: true },
+  { id: "education", label: "Education", stop: 0.835, anchor: true, nav: true },
+  { id: "contact", label: "Contact", stop: 1, anchor: true, nav: true },
 ] as const;

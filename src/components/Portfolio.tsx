@@ -5,17 +5,45 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
 import { profile, sections } from "@/content/profile";
-import type { RideScene } from "@/lib/rideScene";
+import type { RideScene, RideSceneOptions } from "@/lib/rideScene";
 
-const billboards = [
-  { stop: 0.0, title: "I BUILD AI AGENTS", sub: "LangGraph · Gemini · Pub/Sub", gantry: true },
-  { stop: 0.15, title: "BANGALORE", sub: "where the ride begins", side: -1 as const },
-  { stop: 0.32, title: "HEALTHFOUNDRY.AI", sub: "Software Engineer · 2026 →", side: 1 as const },
-  { stop: 0.49, title: "OBSERVE EVERYTHING", sub: "OpenTelemetry · Grafana · Tempo", side: -1 as const },
-  { stop: 0.74, title: "SHIP IT.", sub: "FastAPI · Fastify · GitHub Actions", side: 1 as const },
-  { stop: 0.86, title: "BMSCE '26", sub: "CGPA 8.94", side: -1 as const },
-  { stop: 0.97, title: "LET'S TALK", sub: profile.email, gantry: true },
-];
+const BOAT_END = 0.745;
+const stopOf = (id: string) => sections.find((s) => s.id === id)!.stop;
+const group = (name: string) => profile.skills.find((g) => g.group === name)?.items ?? [];
+
+function sceneOptions(projectStops: number[]): Omit<RideSceneOptions, "quality"> {
+  return {
+    billboards: [
+      { stop: 0, title: "I BUILD AI AGENTS", sub: "LangGraph · Gemini · Pub/Sub", gantry: true },
+      { stop: 0.12, title: "I SHIP TO PRODUCTION", sub: "Python · TypeScript · GCP · AWS", side: 1 },
+      { stop: 0.45, title: "NEXT STOP: THE BAY", sub: "projects ahead", side: -1 },
+    ],
+    plaza: {
+      stop: stopOf("experience"),
+      screens: [
+        { title: "Software Engineer", sub: "HealthFoundry.ai · Jul 2026 → now · agent orchestration, observability, Platform SDK", big: true },
+        { title: "Data Engineer Intern", sub: "HealthFoundry.ai · Sep 2025 – Jun 2026 · real-time notifications, clinical documents", big: true },
+        { title: "LangGraph", sub: "orchestration" },
+        { title: "Pub/Sub", sub: "event-driven" },
+        { title: "OpenTelemetry", sub: "8 services" },
+        { title: "FHIR", sub: "healthcare data" },
+        { title: "Gemini", sub: "agents" },
+        { title: "SSE", sub: "real-time" },
+      ],
+    },
+    skillPanels: [
+      { stop: stopOf("skills"), title: "AI · LLM", items: group("AI / LLM") },
+      { stop: stopOf("skills"), title: "Backend · Cloud", items: [...group("Languages"), ...group("Backend & Frontend"), ...group("Cloud & Ops")] },
+      { stop: stopOf("skills"), title: "Data · Ops · Health", items: [...group("Observability"), ...group("Data"), ...group("Healthcare")] },
+    ],
+    projects: profile.projects.map((p, i) => ({ ...p, stop: projectStops[i] ?? 0.5 + (i + 0.5) * 0.045 })),
+    eduCards: [
+      { title: "B.E. Computer Science", sub: "BMS College of Engineering · 2022 – 2026" },
+      { title: "CGPA 8.94", sub: "BMSCE · Class of 2026" },
+      { title: "Certified", sub: "NPTEL Python for Data Science · RapidMiner ML Professional" },
+    ],
+  };
+}
 
 export default function Portfolio() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -40,31 +68,35 @@ export default function Portfolio() {
     let cancelled = false;
     const video = videoRef.current;
 
-    // map scroll position -> route progress so the rider reaches each
-    // section's landmark when that section is centred on screen
-    const els = sections.map((s) => document.getElementById(s.id)!);
+    // scroll position -> journey progress. Anchored sections land exactly on
+    // their stop when centred; everything in between is interpolated.
+    const anchored = sections.filter((s) => s.anchor);
+    const all = sections.map((s) => document.getElementById(s.id)!);
+    const els = anchored.map((s) => document.getElementById(s.id)!);
     let anchors: number[] = [];
+    const centre = (el: HTMLElement) => el.offsetTop + el.offsetHeight / 2 - window.innerHeight / 2;
     const measure = () => {
-      const vh = window.innerHeight;
-      const max = document.documentElement.scrollHeight - vh;
-      anchors = els.map((el, i) => {
-        if (i === 0) return 0;
-        if (i === els.length - 1) return max;
-        return Math.min(max, Math.max(0, el.offsetTop + el.offsetHeight / 2 - vh / 2));
-      });
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      anchors = els.map((el, i) => (i === 0 ? 0 : i === els.length - 1 ? max : Math.min(max, Math.max(0, centre(el)))));
+    };
+    const progressAt = (y: number) => {
+      let i = 0;
+      while (i < anchors.length - 2 && y > anchors[i + 1]) i++;
+      const a = anchors[i], b = anchors[i + 1];
+      const k = b > a ? Math.min(1, Math.max(0, (y - a) / (b - a))) : 0;
+      return anchored[i].stop + (anchored[i + 1].stop - anchored[i].stop) * k;
     };
     measure();
     window.addEventListener("resize", measure);
 
     const onScroll = () => {
       const y = window.scrollY;
-      let i = 0;
-      while (i < anchors.length - 2 && y > anchors[i + 1]) i++;
-      const a = anchors[i], b = anchors[i + 1];
-      const k = b > a ? Math.min(1, Math.max(0, (y - a) / (b - a))) : 0;
-      const p = sections[i].stop + (sections[i + 1].stop - sections[i].stop) * k;
+      const p = progressAt(y);
       setProgress(p);
-      setActive(k > 0.5 ? i + 1 : i);
+      // active section = the one whose centre is nearest
+      let best = 0, bd = Infinity;
+      all.forEach((el, i) => { const d = Math.abs(centre(el) - y); if (d < bd) { bd = d; best = i; } });
+      setActive(best);
       scene?.setProgress(p);
       if (video && video.duration) video.currentTime = p * (video.duration - 0.05);
     };
@@ -82,8 +114,13 @@ export default function Portfolio() {
       else
         Promise.all([import("@/lib/rideScene"), document.fonts?.ready ?? Promise.resolve()]).then(([mod]) => {
           if (cancelled || !canvasRef.current) return;
+          measure();
+          // each project billboard floats past when its card is centred
+          const projectStops = [...document.querySelectorAll<HTMLElement>("[data-project]")].map((el) =>
+            Math.min(BOAT_END - 0.012, progressAt(el.offsetTop + el.offsetHeight / 2 - window.innerHeight / 2)),
+          );
           const low = window.innerWidth < 760 || (navigator.hardwareConcurrency ?? 8) <= 4;
-          scene = mod.createRideScene(canvasRef.current, { billboards, quality: low ? "low" : "high" });
+          scene = mod.createRideScene(canvasRef.current, { ...sceneOptions(projectStops), quality: low ? "low" : "high" });
           onScroll();
           requestAnimationFrame(() => setReady(true));
         });
@@ -91,16 +128,13 @@ export default function Portfolio() {
       setReady(true);
     }
 
-    // reveal animations
     const ctx = gsap.context(() => {
       gsap.utils.toArray<HTMLElement>("[data-reveal]").forEach((el) => {
-        gsap.from(el, {
-          y: 60, opacity: 0, duration: 1.1, ease: "power3.out",
-          scrollTrigger: { trigger: el, start: "top 85%" },
-        });
+        gsap.from(el, { y: 60, opacity: 0, duration: 1.1, ease: "power3.out", scrollTrigger: { trigger: el, start: "top 85%" } });
       });
       gsap.from(".hero-name > span > span", { yPercent: 110, duration: 1.4, ease: "expo.out", stagger: 0.08, delay: 0.3 });
       gsap.from(".hero-meta > *", { opacity: 0, y: 20, duration: 1, stagger: 0.1, delay: 0.9 });
+      gsap.from(".boat-title span", { yPercent: 100, opacity: 0, duration: 1, stagger: 0.12, ease: "power4.out", scrollTrigger: { trigger: "#boat", start: "top 60%" } });
     });
 
     return () => {
@@ -119,45 +153,40 @@ export default function Portfolio() {
     const el = document.getElementById(id);
     if (!el) return;
     const top = id === "home" ? 0 : el.offsetTop + el.offsetHeight / 2 - window.innerHeight / 2;
-    lenisRef.current?.scrollTo(top, { duration: 2.2 });
+    lenisRef.current?.scrollTo(top, { duration: 2.4 });
   };
 
   const km = (progress * 14.6).toFixed(1);
+  const flash = Math.max(0, 1 - Math.abs(progress - BOAT_END) / 0.018);
+  const mode = progress < 0.5 ? "by bike" : progress < BOAT_END ? "by boat" : "above the clouds";
 
   return (
     <>
       <div className="stage" aria-hidden>
-        {profile.rideVideo ? (
-          <video ref={videoRef} src={profile.rideVideo} muted playsInline preload="auto" />
-        ) : (
-          <canvas ref={canvasRef} />
-        )}
+        {profile.rideVideo ? <video ref={videoRef} src={profile.rideVideo} muted playsInline preload="auto" /> : <canvas ref={canvasRef} />}
         {noWebGL && <div className="stage-fallback" />}
         <div className="vignette" />
         <div className="grain" />
+        <div className="flash" style={{ opacity: flash }} />
       </div>
-      <div className={`loader ${ready ? "done" : ""}`}>
-        <span>Loading…</span>
-      </div>
+      <div className={`loader ${ready ? "done" : ""}`}><span>Loading…</span></div>
 
       <header className="topbar">
         <button className="logo" onClick={() => go("home")}>DK</button>
         <nav>
-          {sections.slice(1).map((s) => (
-            <button key={s.id} className={sections[active].id === s.id ? "on" : ""} onClick={() => go(s.id)}>
-              {s.label}
-            </button>
+          {sections.filter((s) => s.nav).map((s) => (
+            <button key={s.id} className={sections[active].id === s.id ? "on" : ""} onClick={() => go(s.id)}>{s.label}</button>
           ))}
         </nav>
         <a className="cta" href={`mailto:${profile.email}`}>Hire me</a>
       </header>
 
       <aside className="hud" aria-hidden>
-        <div className="hud-km"><b>{km}</b><small>km</small></div>
+        <div className="hud-km"><b>{km}</b><small>km · {mode}</small></div>
         <div className="hud-track">
           <i style={{ height: `${progress * 100}%` }} />
           {sections.map((s, i) => (
-            <button key={s.id} style={{ top: `${s.stop * 100}%` }} className={i <= active ? "hit" : ""} onClick={() => go(s.id)} title={s.label} />
+            <button key={s.id} style={{ top: `${s.stop * 100}%` }} className={progress >= s.stop - 0.005 ? "hit" : ""} onClick={() => go(s.id)} title={s.label} />
           ))}
         </div>
         <div className="hud-label">{String(active + 1).padStart(2, "0")} / {sections[active].label}</div>
@@ -166,9 +195,7 @@ export default function Portfolio() {
       <main>
         <section id="home" className="hero">
           <h1 className="hero-name">
-            {profile.name.split(" ").map((w) => (
-              <span key={w}><span>{w}</span></span>
-            ))}
+            {profile.name.split(" ").map((w) => <span key={w}><span>{w}</span></span>)}
           </h1>
           <div className="hero-meta">
             <p className="eyebrow">{profile.role} · {profile.location}</p>
@@ -183,23 +210,18 @@ export default function Portfolio() {
             <h2>Agents that do real work, in a field where it matters.</h2>
             <p>{profile.summary}</p>
             <div className="stats">
-              {profile.stats.map((s) => (
-                <div key={s.label}><b>{s.value}</b><span>{s.label}</span></div>
-              ))}
+              {profile.stats.map((s) => <div key={s.label}><b>{s.value}</b><span>{s.label}</span></div>)}
             </div>
           </div>
         </section>
 
-        <section id="experience" className="panel right">
+        <section id="experience" className="panel left">
           <div className="card wide" data-reveal>
             <p className="kicker">02 — Experience</p>
             <h2>HealthFoundry.ai</h2>
             {profile.experience.map((e) => (
               <article key={e.role} className="job">
-                <header>
-                  <h3>{e.role}</h3>
-                  <span>{e.period}</span>
-                </header>
+                <header><h3>{e.role}</h3><span>{e.period}</span></header>
                 <p className="muted">{e.company}</p>
                 <ul>{e.points.map((p) => <li key={p}>{p}</li>)}</ul>
               </article>
@@ -222,25 +244,27 @@ export default function Portfolio() {
           </div>
         </section>
 
-        <section id="projects" className="panel center">
-          <div className="projects" data-reveal>
-            <p className="kicker">04 — Projects</p>
-            <h2>Things I&apos;ve built.</h2>
-            <div className="grid">
-              {profile.projects.map((p, i) => (
-                <article key={p.title} className="proj">
-                  <span className="num">{String(i + 1).padStart(2, "0")}</span>
-                  <p className="muted">{p.kind}</p>
-                  <h3>{p.title}</h3>
-                  <p>{p.blurb}</p>
-                  <div className="chips small">{p.tags.map((t) => <span key={t}>{t}</span>)}</div>
-                </article>
-              ))}
-            </div>
-          </div>
+        <section id="boat" className="boat">
+          <p className="kicker">Next stop · the bay</p>
+          <h2 className="boat-title"><span>We&apos;re taking</span> <span>the boat.</span></h2>
+          <p className="boat-sub">Projects are moored across the water.</p>
         </section>
 
-        <section id="education" className="panel right">
+        <section id="projects" className="projects-sec">
+          {profile.projects.map((p, i) => (
+            <div key={p.title} className={`proj-row ${i % 2 ? "right" : "left"}`} data-project>
+              <article className="card proj" data-reveal>
+                <p className="kicker">04 — Project {String(i + 1).padStart(2, "0")}</p>
+                <p className="muted">{p.kind}</p>
+                <h3>{p.title}</h3>
+                <p>{p.blurb}</p>
+                <div className="chips small">{p.tags.map((t) => <span key={t}>{t}</span>)}</div>
+              </article>
+            </div>
+          ))}
+        </section>
+
+        <section id="education" className="panel right edu">
           <div className="card" data-reveal>
             <p className="kicker">05 — Education</p>
             <h2>{profile.education.degree}</h2>
@@ -261,11 +285,9 @@ export default function Portfolio() {
 
 function Contact() {
   const [copied, setCopied] = useState(false);
-
   const copyEmail = async () => {
-    try {
-      await navigator.clipboard.writeText(profile.email);
-    } catch {
+    try { await navigator.clipboard.writeText(profile.email); }
+    catch {
       const range = document.createRange();
       const el = document.getElementById("contact-email");
       if (el) { range.selectNodeContents(el); window.getSelection()?.removeAllRanges(); window.getSelection()?.addRange(range); }
@@ -273,7 +295,6 @@ function Contact() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
   return (
     <div className="card contact" data-reveal>
       <p className="kicker">06 — Contact</p>
